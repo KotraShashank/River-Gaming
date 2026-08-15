@@ -46,7 +46,16 @@ if (process.env.NODE_ENV === "production") {
 
 streamSocketHandler(io);
 
-server.listen(PORT, () => {
-  connectDB();
-  console.log(`Server running on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  }
+};
+
+startServer();
