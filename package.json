@@ -1,0 +1,33 @@
+{
+  "name": "river-gaming",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+  "dev": "nodemon server/server.js",
+  "start": "NODE_ENV=production node server/server.js",
+  "install-backend": "npm install",
+  "install-frontend": "cd client && NODE_ENV=development npm install",
+  "build-client": "cd client && npm run build",
+  "build": "npm run install-backend && npm run install-frontend && npm run build-client"
+  },
+  "author": "Rushil Reddy",
+  "license": "ISC",
+  "dependencies": {
+    "@hookform/resolvers": "^5.0.1",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-validator": "^7.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.15.0",
+    "react-toastify": "^11.0.5",
+    "socket.io": "^4.8.1",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
