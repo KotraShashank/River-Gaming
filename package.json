@@ -5,7 +5,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-  "dev": "nodemon server/server.js",
+  "dev": "nodemon --watch server server/server.js",
   "start": "NODE_ENV=production node server/server.js",
   "install-backend": "npm install",
   "install-frontend": "cd client && NODE_ENV=development npm install",

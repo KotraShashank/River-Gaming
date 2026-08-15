@@ -1,0 +1,10 @@
+node_modules
+.git
+.env
+client
+dist
+build
+*.log
+.DS_Store
+.vscode
+.idea
