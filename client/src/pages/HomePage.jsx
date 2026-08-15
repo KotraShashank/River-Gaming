@@ -1,30 +1,40 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
-import { CircleArrowLeft } from "lucide-react";
-import { useParams, useNavigate } from "react-router-dom"; // Import hooks
+import { CircleArrowLeft, Radio, Search, Users } from "lucide-react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import UserQuiz from "@/components/UserQuiz";
+import StreamChat from "@/components/StreamChat";
+import LiveReactions from "@/components/LiveReactions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import useStreamStore from "../store/streamStore";
 import { Card } from "@/components/ui/card";
 import useUserStore from "../store/userStore";
-import axios from "axios";
-import { toast } from "react-toastify";
 
 const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_URL || "/";
+
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest First" },
+  { value: "az", label: "Title A-Z" },
+  { value: "viewers", label: "Most Viewers" },
+];
 
 const HomePage = () => {
   const [selectedStream, setSelectedStream] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [viewerCount, setViewerCount] = useState(0);
   const { streams, fetchStreams } = useStreamStore();
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
 
-  const { streamId } = useParams(); // Get streamId from URL
-  const navigate = useNavigate(); // For navigation
+  const { streamId } = useParams();
+  const navigate = useNavigate();
 
-  const setId = useUserStore((state) => state.setUserId);
-  const setCoins = useUserStore((state) => state.setCoins);
   const userId = useUserStore((state) => state.userId);
-  const setRole = useUserStore((state) => state.setRole);
+  const name = useUserStore((state) => state.name);
+  const role = useUserStore((state) => state.role);
 
   useEffect(() => {
     const loadPage = async () => {
@@ -52,14 +62,21 @@ const HomePage = () => {
   useEffect(() => {
     if (!selectedStream) return;
 
-    const socketClient = io(SOCKET_SERVER_URL);
+    const socketClient = io(SOCKET_SERVER_URL, {
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+    });
 
     socketClient.on("connect", () => {
-      console.log("User socket connected");
       socketClient.emit("join_stream", {
         streamId: selectedStream.streamId,
         userId,
       });
+    });
+
+    socketClient.on("viewer_count_update", ({ viewerCount }) => {
+      setViewerCount(viewerCount);
     });
 
     setSocket(socketClient);
@@ -67,58 +84,42 @@ const HomePage = () => {
     return () => {
       socketClient.disconnect();
       setSocket(null);
+      setViewerCount(0);
     };
   }, [selectedStream, userId]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+  const visibleStreams = useMemo(() => {
+    let list = streams;
 
-        const res = await axios.get("/api/auth", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((s) => s.title?.toLowerCase().includes(q));
+    }
 
-        const { id, coins, isFirst, role } = res.data.data;
+    list = [...list];
+    if (sortBy === "az") {
+      list.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortBy === "viewers") {
+      list.sort((a, b) => (b.viewerCount || 0) - (a.viewerCount || 0));
+    } else {
+      list.sort(
+        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      );
+    }
 
-        if (isFirst) {
-          await axios.put(
-            "/api/user/first",
-            {},
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-          toast.success("🎉 Welcome! You’ve been awarded 50 bonus coins!");
-        }
-
-        setId(id);
-        setCoins(coins);
-        setRole(role);
-      } catch (err) {
-        console.error("Failed to fetch user info", err);
-      }
-    };
-
-    fetchData();
-    console.log(userId);
-  }, [setId, setCoins]);
+    return list;
+  }, [streams, search, sortBy]);
 
   if (selectedStream) {
     return (
       <div className="p-6">
-        <div className="flex justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
           <Button
             onClick={() => {
               setSelectedStream(null);
               navigate("/");
             }}
-            className="mb-4 font-semibold flex items-center gap-2"
+            className="font-semibold flex items-center gap-2"
           >
             <CircleArrowLeft />
             Go Back
@@ -130,21 +131,48 @@ const HomePage = () => {
           />
         </div>
 
-        <p className="text-center text-lg font-semibold mb-4">
-          {selectedStream.title}
-        </p>
+        <div className="flex items-center justify-center gap-3 mb-4 flex-wrap">
+          <p className="text-center text-lg font-semibold">
+            {selectedStream.title}
+          </p>
+          {viewerCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-600 text-white text-xs font-semibold px-2.5 py-1">
+              <Radio className="size-3" />
+              LIVE
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+            <Users className="size-4" />
+            {viewerCount} watching
+          </span>
+        </div>
 
-        {selectedStream.youtubeEmbedUrl?.length > 0 && (
-          <div className="flex justify-center items-center mb-6">
-            <iframe
-              className="w-4/5 h-[500px]"
-              src={selectedStream.youtubeEmbedUrl}
-              allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              title={selectedStream.title}
-            />
-          </div>
-        )}
+        <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
+          {selectedStream.youtubeEmbedUrl?.length > 0 ? (
+            <div className="relative flex-1 w-full max-w-4xl">
+              <iframe
+                className="w-full h-[500px]"
+                src={selectedStream.youtubeEmbedUrl}
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                title={selectedStream.title}
+              />
+              <LiveReactions streamId={selectedStream.streamId} socket={socket} />
+            </div>
+          ) : (
+            <div className="flex-1 w-full max-w-4xl h-[500px] flex items-center justify-center border rounded-md text-muted-foreground">
+              This stream doesn't have a video source yet. Check back soon!
+            </div>
+          )}
+
+          <StreamChat
+            streamId={selectedStream.streamId}
+            socket={socket}
+            userId={userId}
+            username={name}
+            role={role}
+          />
+        </div>
       </div>
     );
   }
@@ -155,31 +183,78 @@ const HomePage = () => {
         Available Streams
       </p>
 
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search streams by title..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="border bg-background rounded-md h-9 px-3 text-sm shadow-xs"
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {loading ? (
-          <p className="text-center w-full">Loading streams...</p>
-        ) : streams.length === 0 ? (
-          <p className="text-center w-full">No streams available</p>
-        ) : (
-          streams.map((stream) => (
+        {loading &&
+          Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="w-full h-[200px]" />
+              <Skeleton className="h-5 w-3/4 mx-auto" />
+            </div>
+          ))}
+
+        {!loading && visibleStreams.length === 0 && (
+          <p className="col-span-full text-center text-muted-foreground py-12">
+            {streams.length === 0
+              ? "No streams available right now. Check back soon!"
+              : "No streams match your search."}
+          </p>
+        )}
+
+        {!loading &&
+          visibleStreams.map((stream) => (
             <Card
               key={stream._id}
-              className="cursor-pointer overflow-hidden p-0 gap-0"
-              onClick={() => navigate(`/${stream.streamId}`)} // Navigate to stream's unique path
+              className="cursor-pointer overflow-hidden p-0 gap-0 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              onClick={() => navigate(`/${stream.streamId}`)}
             >
-              <img
-                src={
-                  stream.thumbnailUrl || "https://via.placeholder.com/300x200"
-                }
-                alt={stream.title}
-                className="w-full h-[200px] object-cover"
-              />
-              <div className="py-2 px-4 text-center text-lg">
+              <div className="relative">
+                <img
+                  src={
+                    stream.thumbnailUrl ||
+                    "https://media.istockphoto.com/id/1409329028/vector/no-picture-available-placeholder-thumbnail-icon-illustration-design.jpg?s=612x612&w=0&k=20&c=_zOuJu755g2eEUioiOUdz_mHKJQJn-tDgIAhQzyeKUQ="
+                  }
+                  alt={stream.title}
+                  className="w-full h-[200px] object-cover"
+                />
+                {stream.viewerCount > 0 && (
+                  <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-red-600 text-white text-[10px] font-semibold px-2 py-0.5">
+                    <Radio className="size-3" />
+                    LIVE
+                  </span>
+                )}
+                <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 text-white text-[10px] font-medium px-2 py-0.5">
+                  <Users className="size-3" />
+                  {stream.viewerCount ?? 0}
+                </span>
+              </div>
+              <div className="py-2 px-4 text-center text-lg truncate">
                 {stream.title}
               </div>
             </Card>
-          ))
-        )}
+          ))}
       </div>
     </div>
   );

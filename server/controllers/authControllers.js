@@ -125,6 +125,7 @@ const getInfo = async (req, res) => {
       message: "Info retrieved",
       data: {
         id: data._id,
+        name: data.name,
         coins: data.coins,
         isFirst: data.isFirst,
         role: data.role,

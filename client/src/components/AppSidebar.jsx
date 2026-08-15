@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -21,17 +21,67 @@ import {
   ShieldUser,
   TvMinimalPlay,
 } from "lucide-react";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import StreamDialog from "./StreamDialog";
-import { Slide, ToastContainer } from "react-toastify";
+import { Slide, ToastContainer, toast } from "react-toastify";
 import useUserStore from "@/store/userStore";
 import { Button } from "./ui/button";
+import axios from "axios";
 
 const AppSidebar = () => {
   const coins = useUserStore((state) => state.coins);
   const role = useUserStore((state) => state.role);
+  const name = useUserStore((state) => state.name);
+  const setId = useUserStore((state) => state.setUserId);
+  const setName = useUserStore((state) => state.setName);
+  const setCoins = useUserStore((state) => state.setCoins);
+  const setRole = useUserStore((state) => state.setRole);
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Runs once per app load (this layout wraps every authenticated route),
+  // so admin/user info is always in sync no matter which page you land on.
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await axios.get("/api/auth", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const { id, name, coins, isFirst, role } = res.data.data;
+
+        if (isFirst) {
+          await axios.put(
+            "/api/user/first",
+            {},
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          toast.success("🎉 Welcome! You've been awarded 50 bonus coins!");
+        }
+
+        setId(id);
+        setName(name);
+        setCoins(coins);
+        setRole(role);
+      } catch (err) {
+        console.error("Failed to fetch user info", err);
+      }
+    };
+
+    loadUserInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const navLinkClass = (path) =>
+    `transition-colors rounded-md px-3 py-2 ${
+      location.pathname === path
+        ? "bg-[--color-primary] text-white"
+        : "!text-[--color-primary] hover:bg-[--color-primary] hover:text-white"
+    }`;
 
   return (
     <SidebarProvider>
@@ -51,7 +101,9 @@ const AppSidebar = () => {
                     </div>
                   ) : (
                     <div className="flex flex-col gap-0.5 leading-none">
-                      <span className="font-semibold">User Panel</span>
+                      <span className="font-semibold">
+                        {name ? `Hi, ${name.split(" ")[0]}` : "User Panel"}
+                      </span>
                       <span className="">Watch streams, earn coins</span>
                     </div>
                   )}
@@ -65,10 +117,7 @@ const AppSidebar = () => {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link
-                    to="/"
-                    className="!text-[--color-primary] !hover:bg-[--color-primary] !hover:text-white transition-colors rounded-md px-3 py-2"
-                  >
+                  <Link to="/" className={navLinkClass("/")}>
                     <TvMinimalPlay />
                     View All Streams
                   </Link>
@@ -78,10 +127,7 @@ const AppSidebar = () => {
               {role === "admin" && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link
-                      to="/admin"
-                      className="!text-[--color-primary] !hover:bg-[--color-primary] !hover:text-white transition-colors rounded-md px-3 py-2"
-                    >
+                    <Link to="/admin" className={navLinkClass("/admin")}>
                       <ShieldUser />
                       Admin Panel
                     </Link>
