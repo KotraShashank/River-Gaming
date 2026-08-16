@@ -4,15 +4,18 @@
   "type": "module",
   "description": "",
   "main": "server.js",
-  "scripts": {
-  "dev": "nodemon --watch server server/server.js",
-  "start": "NODE_ENV=production node server/server.js",
-  "install-backend": "npm install",
-  "install-frontend": "cd client && NODE_ENV=development npm install",
-  "build-client": "cd client && npm run build",
-  "build": "npm run install-backend && npm run install-frontend && npm run build-client"
+  "engines": {
+    "node": ">=18.18.0"
   },
-  "author": "Rushil Reddy",
+  "scripts": {
+    "dev": "nodemon --watch server server/server.js",
+    "start": "NODE_ENV=production node server/server.js",
+    "install-backend": "npm install",
+    "install-frontend": "cd client && NODE_ENV=development npm install",
+    "build-client": "cd client && npm run build",
+    "build": "npm run install-backend && npm run install-frontend && npm run build-client"
+  },
+  "author": "Shashank Kotra",
   "license": "ISC",
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
