@@ -71,6 +71,7 @@ const AdminPage = () => {
     if (!selectedStream) return;
 
     const socketClient = io(SOCKET_SERVER_URL, {
+      auth: (cb) => cb({ token: localStorage.getItem("token") }),
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
@@ -88,6 +89,13 @@ const AdminPage = () => {
       setViewerCount(viewerCount);
     });
 
+    socketClient.on("connect_error", (err) => {
+      if (/token|authentication/i.test(err.message)) {
+        localStorage.removeItem("token");
+        navigate("/login", { replace: true });
+      }
+    });
+
     setSocket(socketClient);
 
     return () => {
@@ -96,7 +104,7 @@ const AdminPage = () => {
       setSocket(null);
       setViewerCount(0);
     };
-  }, [selectedStream, userId]);
+  }, [selectedStream, userId, navigate]);
 
   const stats = useMemo(() => {
     const totalStreams = streams.length;

@@ -55,12 +55,16 @@ const AppSidebar = () => {
         const { id, name, coins, isFirst, role } = res.data.data;
 
         if (isFirst) {
-          await axios.put(
+          const firstRes = await axios.put(
             "/api/user/first",
             {},
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          toast.success("🎉 Welcome! You've been awarded 50 bonus coins!");
+          // Server only reports firstLogin once, so the message can't repeat.
+          // The 50 coins are the starting balance already included above.
+          if (firstRes.data?.data?.firstLogin) {
+            toast.success("🎉 Welcome! Your account starts with 50 free coins!");
+          }
         }
 
         setId(id);

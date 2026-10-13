@@ -19,7 +19,6 @@ import useUserStore from "@/store/userStore";
 const quizSchema = z.object({
   question: z.string().min(1),
   options: z.array(z.string().min(1)).nonempty(),
-  correctIndex: z.number().int().min(0).max(3),
 });
 
 const UserQuiz = ({ streamId, userId, socket }) => {

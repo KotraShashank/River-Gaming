@@ -7,6 +7,7 @@ import connectDB from "./config/connectDB.js";
 import authRoutes from "./routes/authRoutes.js";
 import streamRoutes from "./routes/streamRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import { socketAuth } from "./middleware/authMiddleware.js";
 import streamSocketHandler from "./sockets/streamSocket.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -44,6 +45,7 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
+io.use(socketAuth);
 streamSocketHandler(io);
 
 const startServer = async () => {
